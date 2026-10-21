@@ -1,0 +1,451 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LingoChat</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --green: #58cc02; --green-d: #46a302; --green-soft: #d7ffb8; --green-line: #89e219;
+    --blue: #1cb0f6; --orange: #ff9600; --red: #ea2b2b;
+    --bg: #ffffff; --panel: #f7f7f7; --ink: #3c3c3c; --muted: #777777; --line: #e5e5e5;
+    --tip-bg: #3c3c3c; --tip-ink: #ffffff;
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #131f24; --panel: #1b2b32; --ink: #eef3f5; --muted: #93a4ab; --line: #2e424b;
+      --green-soft: #26441a; --green-line: #3f7a1c;
+      --tip-bg: #eef3f5; --tip-ink: #131f24;
+      color-scheme: dark;
+    }
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; }
+  body {
+    font-family: "Nunito", ui-rounded, "Segoe UI", system-ui, sans-serif;
+    font-weight: 700; color: var(--ink); background: var(--bg);
+    display: flex; flex-direction: column; align-items: center;
+  }
+  .app { width: 100%; max-width: 720px; height: 100%; display: flex; flex-direction: column; padding: 0 16px; }
+
+  header { display: flex; align-items: center; justify-content: space-between; padding: 14px 0 10px; gap: 12px; }
+  .logo { font-size: 1.6rem; font-weight: 800; color: var(--green); letter-spacing: -.5px; }
+  .stats { display: flex; gap: 14px; font-weight: 800; }
+  .stat { display: flex; align-items: center; gap: 5px; }
+  .stat.streak { color: var(--orange); }
+  .stat.xp { color: var(--blue); }
+
+  .settings { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; padding-bottom: 10px; }
+  .settings label { font-size: .85rem; color: var(--muted); display: flex; align-items: center; gap: 6px; }
+  select {
+    font: inherit; color: var(--ink); background: var(--bg);
+    border: 2px solid var(--line); border-radius: 12px; padding: 6px 10px;
+  }
+  .icon-btn {
+    font: inherit; background: var(--bg); color: var(--ink); border: 2px solid var(--line);
+    border-bottom-width: 4px; border-radius: 12px; padding: 4px 10px; cursor: pointer;
+  }
+  .icon-btn:active { border-bottom-width: 2px; transform: translateY(2px); }
+
+  .goal { padding-bottom: 10px; }
+  .goal-top { display: flex; justify-content: space-between; font-size: .85rem; color: var(--muted); margin-bottom: 4px; }
+  .bar { height: 12px; background: var(--line); border-radius: 99px; overflow: hidden; }
+  .bar > i { display: block; height: 100%; width: 0; background: var(--green); border-radius: 99px; transition: width .4s; }
+
+  #chat {
+    flex: 1; overflow-y: auto; padding: 14px 4px; display: flex; flex-direction: column; gap: 14px;
+    border-top: 2px solid var(--line);
+  }
+  .empty { margin: auto; text-align: center; color: var(--muted); max-width: 360px; line-height: 1.5; }
+  .empty h2 { color: var(--ink); margin: 0 0 6px; font-size: 1.2rem; }
+
+  .msg { display: flex; flex-direction: column; max-width: 82%; }
+  .msg.me { align-self: flex-end; align-items: flex-end; }
+  .msg.friend { align-self: flex-start; align-items: flex-start; }
+  .bubble {
+    border: 2px solid var(--line); border-radius: 18px; padding: 10px 14px;
+    font-size: 1.1rem; line-height: 1.6; background: var(--bg);
+  }
+  .me .bubble { background: var(--green-soft); border-color: var(--green-line); border-bottom-right-radius: 4px; }
+  .friend .bubble { border-bottom-left-radius: 4px; }
+  .w { border-bottom: 2px dotted var(--muted); cursor: help; border-radius: 3px; }
+  .w:hover, .w.active { background: rgba(28,176,246,.18); border-bottom-color: var(--blue); }
+  .tr { margin: 5px 6px 0; font-size: .92rem; color: var(--muted); font-weight: 600; }
+
+  #tip {
+    position: fixed; z-index: 10; background: var(--tip-bg); color: var(--tip-ink);
+    padding: 8px 12px; border-radius: 12px; font-size: .95rem; max-width: 240px;
+    pointer-events: none; opacity: 0; transition: opacity .12s; box-shadow: 0 4px 14px rgba(0,0,0,.25);
+  }
+  #tip.show { opacity: 1; }
+  #tip b { font-size: 1.05rem; display: block; }
+  #tip small { opacity: .75; font-weight: 600; display: block; margin-top: 2px; }
+
+  .composer { padding: 12px 0 16px; border-top: 2px solid var(--line); }
+  .row { display: flex; gap: 8px; }
+  input[type=text] {
+    flex: 1; min-width: 0; font: inherit; font-size: 1.05rem; color: var(--ink); background: var(--panel);
+    border: 2px solid var(--line); border-radius: 14px; padding: 12px 14px; outline: none;
+  }
+  input[type=text]:focus { border-color: var(--blue); }
+  .btn {
+    font: inherit; font-weight: 800; color: #fff; background: var(--green); border: 0;
+    border-bottom: 4px solid var(--green-d); border-radius: 14px; padding: 10px 20px; cursor: pointer;
+  }
+  .btn:active { border-bottom-width: 1px; transform: translateY(3px); }
+  .btn:disabled { background: var(--line); border-bottom-color: var(--line); color: var(--muted); cursor: default; }
+  .who { display: flex; gap: 6px; margin-bottom: 8px; align-items: center; font-size: .85rem; color: var(--muted); }
+  .who button {
+    font: inherit; font-size: .85rem; color: var(--muted); background: var(--bg);
+    border: 2px solid var(--line); border-radius: 99px; padding: 3px 12px; cursor: pointer;
+  }
+  .who button.on { color: var(--blue); border-color: var(--blue); }
+  .sample { margin-top: 12px; }
+  :focus-visible { outline: 3px solid var(--blue); outline-offset: 2px; }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <div class="logo">LingoChat</div>
+    <div class="stats">
+      <div class="stat streak" title="Daily streak">🔥 <span id="streak">0</span></div>
+      <div class="stat xp" title="Experience points">⚡ <span id="xp">0</span> XP</div>
+    </div>
+  </header>
+
+  <div class="settings">
+    <label>I’m learning
+      <select id="learn"></select>
+    </label>
+    <button class="icon-btn" id="swap" title="Swap languages" aria-label="Swap languages">⇄</button>
+    <label>My language
+      <select id="native"></select>
+    </label>
+    <button class="icon-btn" id="clear" style="margin-left:auto">Clear chat</button>
+  </div>
+
+  <div class="goal">
+    <div class="goal-top"><span id="goalText">Look up 5 new words today</span><span id="goalCount">0/5</span></div>
+    <div class="bar"><i id="goalBar"></i></div>
+  </div>
+
+  <div id="chat" aria-live="polite"></div>
+
+  <div class="composer">
+    <div class="who">Send as
+      <button id="asMe" class="on">Me</button>
+      <button id="asFriend">Friend</button>
+    </div>
+    <div class="row">
+      <input type="text" id="input" placeholder="Write in the language you’re learning" autocomplete="off">
+      <button class="btn" id="send">Send</button>
+    </div>
+  </div>
+</div>
+<div id="tip" role="tooltip"></div>
+
+<script>
+/* ---------- Config ---------- */
+const LANGS = { en:'English', es:'Spanish', fr:'French', de:'German', it:'Italian', pt:'Portuguese', ru:'Russian', hi:'Hindi', ta:'Tamil' };
+const SAMPLES = {
+  es:'¿Dónde está la biblioteca? Quiero leer un libro.',
+  fr:'Je voudrais un café, s’il vous plaît.',
+  de:'Ich gehe heute Abend ins Kino.',
+  it:'Mi piace molto la pizza con il formaggio.',
+  pt:'Eu gosto de caminhar na praia de manhã.',
+  ru:'Я люблю пить чай по вечерам.',
+  hi:'मुझे सुबह चाय पीना पसंद है।',
+  ta:'நான் தினமும் காலையில் பள்ளிக்குச் செல்கிறேன்.',
+  en:'I want to learn a new language every year.'
+};
+const GOAL = 5;
+const WORD_RE = /[\p{L}\p{M}\p{N}]+(?:['’-][\p{L}\p{M}]+)*/gu;
+
+/* ---------- Storage (safe) ---------- */
+const store = {
+  get(k, d) { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch { return d; } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} }
+};
+let state = Object.assign({ streak:0, last:'', xp:0, goalDay:'', seen:[], learn:'es', native:'en' }, store.get('lingochat_state', {}));
+let messages = store.get('lingochat_msgs', []);
+let sender = 'me';
+const save = () => { store.set('lingochat_state', state); store.set('lingochat_msgs', messages.slice(-60)); };
+
+/* ---------- Streak, XP, daily goal ---------- */
+const todayStr = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; };
+const gap = (a, b) => Math.round((new Date(b + 'T00:00') - new Date(a + 'T00:00')) / 864e5);
+
+function markActive() {
+  const t = todayStr();
+  if (state.last === t) return;
+  state.streak = (state.last && gap(state.last, t) === 1) ? state.streak + 1 : 1;
+  state.last = t;
+}
+function refreshStats() {
+  const t = todayStr();
+  if (state.goalDay !== t) { state.goalDay = t; state.seen = []; }
+  const streak = state.last && gap(state.last, t) <= 1 ? state.streak : 0;
+  document.getElementById('streak').textContent = streak;
+  document.getElementById('xp').textContent = state.xp;
+  const n = Math.min(state.seen.length, GOAL);
+  document.getElementById('goalCount').textContent = `${n}/${GOAL}`;
+  document.getElementById('goalBar').style.width = (n / GOAL * 100) + '%';
+  document.getElementById('goalText').textContent = n >= GOAL ? 'Daily goal complete! 🎉' : `Look up ${GOAL} new words today`;
+}
+function countWord(word) {
+  refreshStats();
+  const key = word.toLowerCase();
+  if (state.seen.includes(key)) return;
+  state.seen.push(key);
+  state.xp += 2;
+  if (state.seen.length === GOAL) state.xp += 20;
+  markActive(); save(); refreshStats();
+}
+
+/* ---------- Translation (real APIs, no key needed) ---------- */
+const cache = new Map();
+
+async function googleTranslate(text, sl, tl) {
+  const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=${sl}&tl=${tl}&dt=t&q=${encodeURIComponent(text)}`;
+  const r = await fetch(url);
+  if (!r.ok) throw new Error('google ' + r.status);
+  const d = await r.json();
+  return d[0].filter(s => s && s[0]).map(s => s[0]).join('');
+}
+async function myMemoryTranslate(text, sl, tl) {
+  const r = await fetch(`https://api.mymemory.translated.net/get?q=${encodeURIComponent(text.slice(0, 450))}&langpair=${sl}|${tl}`);
+  const d = await r.json();
+  if (!d.responseData || !d.responseData.translatedText) throw new Error('mymemory');
+  return d.responseData.translatedText;
+}
+async function translate(text, sl, tl) {
+  const key = `${sl}|${tl}|${text}`;
+  if (cache.has(key)) return cache.get(key);
+  let out;
+  try { out = await googleTranslate(text, sl, tl); }
+  catch { out = await myMemoryTranslate(text, sl, tl); }
+  cache.set(key, out);
+  return out;
+}
+
+/* Other dictionary meanings for a single word (Google dictionary data) */
+async function altMeanings(word, sl, tl) {
+  const key = `alt|${sl}|${tl}|${word}`;
+  if (cache.has(key)) return cache.get(key);
+  let list = [];
+  try {
+    const r = await fetch(`https://translate.googleapis.com/translate_a/single?client=gtx&sl=${sl}&tl=${tl}&dt=t&dt=bd&q=${encodeURIComponent(word)}`);
+    const d = await r.json();
+    if (Array.isArray(d[1])) list = d[1].flatMap(e => e[1] || []);
+  } catch {}
+  list = [...new Set(list)].slice(0, 4);
+  cache.set(key, list);
+  return list;
+}
+
+/* Context-aware single word translation:
+   translate the WHOLE sentence with the target word wrapped in [brackets],
+   then read the translated word back out of the brackets. Because the engine sees
+   the nearby words, it picks the right meaning (e.g. "bank" in "river bank" vs "bank account"). */
+async function wordInContext(parts, idx, sl, tl) {
+  const word = parts[idx].t;
+  const key = `ctx|${sl}|${tl}|${idx}|${parts.map(p => p.t).join('')}`;
+  if (cache.has(key)) return cache.get(key);
+
+  const marked = parts.map((p, i) => i === idx ? `[${p.t}]` : p.t).join('');
+  let result = null;
+  try {
+    const out = await translate(marked, sl, tl);
+    const m = out.match(/\[\s*([^\]]+?)\s*\]/);
+    if (m && m[1].trim().split(/\s+/).length <= 4) result = m[1].trim();
+  } catch {}
+  if (!result) result = (await translate(word, sl, tl)).trim();   // fallback: word alone
+
+  const first = parts.findIndex(p => p.w) === idx;
+  if (!first && /^[\p{Lu}][\p{Ll}]/u.test(result) && !/^[\p{Lu}]/u.test(word)) {
+    result = result[0].toLowerCase() + result.slice(1);
+  }
+  cache.set(key, result);
+  return result;
+}
+
+/* ---------- Chat rendering ---------- */
+const chat = document.getElementById('chat');
+const tip = document.getElementById('tip');
+
+function split(text) {
+  const parts = []; let last = 0;
+  for (const m of text.matchAll(WORD_RE)) {
+    if (m.index > last) parts.push({ t: text.slice(last, m.index), w: false });
+    parts.push({ t: m[0], w: true });
+    last = m.index + m[0].length;
+  }
+  if (last < text.length) parts.push({ t: text.slice(last), w: false });
+  return parts;
+}
+
+function renderMsg(m) {
+  const wrap = document.createElement('div');
+  wrap.className = 'msg ' + m.who;
+  const bubble = document.createElement('div');
+  bubble.className = 'bubble';
+  const parts = split(m.text);
+  parts.forEach((p, i) => {
+    if (p.w) {
+      const s = document.createElement('span');
+      s.className = 'w'; s.textContent = p.t; s.dataset.i = i; s.tabIndex = 0;
+      bubble.appendChild(s);
+    } else bubble.appendChild(document.createTextNode(p.t));
+  });
+  const tr = document.createElement('div');
+  tr.className = 'tr';
+  tr.textContent = m.tr || 'Translating…';
+  wrap.append(bubble, tr);
+
+  let timer;
+  bubble.addEventListener('mouseover', e => {
+    const s = e.target.closest('.w'); if (!s) return;
+    clearTimeout(timer);
+    timer = setTimeout(() => lookup(s, parts, m), 180);
+  });
+  bubble.addEventListener('mouseout', e => {
+    if (!e.target.closest('.w')) return;
+    clearTimeout(timer); hideTip();
+  });
+  bubble.addEventListener('click', e => {
+    const s = e.target.closest('.w'); if (s) lookup(s, parts, m);   // tap on touch screens
+  });
+  bubble.addEventListener('focusin', e => {
+    const s = e.target.closest('.w'); if (s) lookup(s, parts, m);
+  });
+  chat.appendChild(wrap);
+  chat.scrollTop = chat.scrollHeight;
+
+  if (!m.tr) {
+    translate(m.text, m.sl, m.tl)
+      .then(t => { m.tr = t; tr.textContent = t; save(); })
+      .catch(() => { tr.textContent = 'Couldn’t reach the translation service. Check your internet connection.'; });
+  }
+}
+
+function renderAll() {
+  chat.innerHTML = '';
+  if (!messages.length) {
+    const e = document.createElement('div');
+    e.className = 'empty';
+    e.innerHTML = '<h2>Start a conversation</h2>Write a sentence in the language you’re learning, then hover (or tap) any word to see what it means in that sentence.<div class="sample"><button class="btn" id="sampleBtn">Try a sample sentence</button></div>';
+    chat.appendChild(e);
+    e.querySelector('#sampleBtn').onclick = () => { input.value = SAMPLES[state.learn] || ''; input.focus(); };
+    return;
+  }
+  messages.forEach(renderMsg);
+}
+
+/* ---------- Tooltip ---------- */
+let activeSpan = null;
+function placeTip(span) {
+  const r = span.getBoundingClientRect();
+  const w = tip.offsetWidth, h = tip.offsetHeight;
+  let x = r.left + r.width / 2 - w / 2;
+  x = Math.max(8, Math.min(x, window.innerWidth - w - 8));
+  let y = r.top - h - 8;
+  if (y < 8) y = r.bottom + 8;
+  tip.style.left = x + 'px'; tip.style.top = y + 'px';
+}
+function hideTip() {
+  tip.classList.remove('show');
+  if (activeSpan) activeSpan.classList.remove('active');
+  activeSpan = null;
+}
+async function lookup(span, parts, m) {
+  if (activeSpan) activeSpan.classList.remove('active');
+  activeSpan = span; span.classList.add('active');
+  const idx = +span.dataset.i;
+  const word = parts[idx].t;
+  tip.innerHTML = ''; tip.textContent = '…';
+  tip.classList.add('show'); placeTip(span);
+
+  try {
+    const [main, alts] = await Promise.all([
+      wordInContext(parts, idx, m.sl, m.tl),
+      altMeanings(word, m.sl, m.tl)
+    ]);
+    if (activeSpan !== span) return;
+    tip.innerHTML = '';
+    const b = document.createElement('b'); b.textContent = main;
+    tip.appendChild(b);
+    const others = alts.filter(a => a.toLowerCase() !== main.toLowerCase());
+    if (others.length) {
+      const s = document.createElement('small'); s.textContent = 'Also: ' + others.join(', ');
+      tip.appendChild(s);
+    }
+    placeTip(span);
+    countWord(word);
+  } catch {
+    if (activeSpan !== span) return;
+    tip.textContent = 'Couldn’t translate. Check your internet connection.';
+    placeTip(span);
+  }
+}
+chat.addEventListener('scroll', hideTip);
+
+/* ---------- Composer ---------- */
+const input = document.getElementById('input');
+const sendBtn = document.getElementById('send');
+
+function send() {
+  const text = input.value.trim();
+  if (!text) return;
+  if (!messages.length) chat.innerHTML = '';
+  const m = { who: sender, text, sl: state.learn, tl: state.native, tr: '' };
+  messages.push(m);
+  input.value = '';
+  if (sender === 'me') { state.xp += 10; }
+  markActive(); save(); refreshStats();
+  renderMsg(m);
+}
+sendBtn.onclick = send;
+input.addEventListener('keydown', e => { if (e.key === 'Enter') send(); });
+
+function setSender(who) {
+  sender = who;
+  document.getElementById('asMe').classList.toggle('on', who === 'me');
+  document.getElementById('asFriend').classList.toggle('on', who === 'friend');
+}
+document.getElementById('asMe').onclick = () => setSender('me');
+document.getElementById('asFriend').onclick = () => setSender('friend');
+
+/* ---------- Language pickers ---------- */
+const learnSel = document.getElementById('learn');
+const nativeSel = document.getElementById('native');
+for (const [code, name] of Object.entries(LANGS)) {
+  learnSel.add(new Option(name, code));
+  nativeSel.add(new Option(name, code));
+}
+function syncLangs() {
+  learnSel.value = state.learn; nativeSel.value = state.native;
+  input.placeholder = `Write in ${LANGS[state.learn]}`;
+}
+learnSel.onchange = () => {
+  if (learnSel.value === state.native) state.native = state.learn;
+  state.learn = learnSel.value; syncLangs(); save();
+};
+nativeSel.onchange = () => {
+  if (nativeSel.value === state.learn) state.learn = state.native;
+  state.native = nativeSel.value; syncLangs(); save();
+};
+document.getElementById('swap').onclick = () => {
+  [state.learn, state.native] = [state.native, state.learn]; syncLangs(); save();
+};
+document.getElementById('clear').onclick = () => { messages = []; save(); renderAll(); };
+
+/* ---------- Init ---------- */
+syncLangs(); refreshStats(); renderAll();
+</script>
+</body>
+</html>
